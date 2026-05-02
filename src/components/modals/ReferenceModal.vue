@@ -29,7 +29,10 @@
           <span
             class="icon"
             :style="{
-              backgroundImage: `url(${require('../../assets/icons/bootlegger.webp')})`,
+              backgroundImage: `url(${getImage(
+                { id: 'bootlegger', team: 'loric', edition: 'loric' },
+                0,
+              )})`,
             }"
           ></span>
           <div class="role">
@@ -55,7 +58,7 @@
             class="icon"
             v-if="role.id"
             :style="{
-              backgroundImage: `url(${getImage(role)})`,
+              backgroundImage: `url(${getImage(role, 0)})`,
             }"
           ></span>
           <div class="role">
@@ -80,13 +83,13 @@
           <span
             class="icon"
             :style="{
-              backgroundImage: `url(${getImage(jinx.first)})`,
+              backgroundImage: `url(${getImage(jinx.first, 0)})`,
             }"
           ></span>
           <span
             class="icon"
             :style="{
-              backgroundImage: `url(${getImage(jinx.second)})`,
+              backgroundImage: `url(${getImage(jinx.second, 0)})`,
             }"
           ></span>
           <div class="role">
@@ -105,7 +108,7 @@
 
 <script>
 import Modal from "./Modal";
-import { mapMutations, mapState } from "vuex";
+import { mapGetters, mapMutations, mapState } from "vuex";
 
 export default {
   components: {
@@ -159,23 +162,11 @@ export default {
       });
       return players;
     },
+    ...mapGetters(["getImage"]),
     ...mapState(["roles", "modals", "edition", "grimoire", "jinxes"]),
     ...mapState("players", ["players"]),
   },
   methods: {
-    getImage(role) {
-      if (role.image && this.grimoire.isImageOptIn) {
-        if (Array.isArray(role.image)) {
-          return role.image[0];
-        }
-
-        return role.image;
-      }
-
-      return require(
-        "../../assets/icons/" + (role.imageAlt || role.id) + ".webp",
-      );
-    },
     ...mapMutations(["toggleModal"]),
   },
 };
@@ -304,7 +295,7 @@ ul {
     .icon {
       width: 8vh;
       background-size: cover;
-      background-position: 0 -5px;
+      background-position: 0 -10px;
       flex-shrink: 0;
       flex-grow: 0;
       &:after {

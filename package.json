@@ -1,13 +1,15 @@
 {
   "name": "townsquare",
-  "version": "2.21.3",
+  "version": "2.22.4",
   "description": "Blood on the Clocktower Town Square",
   "author": "Steffen Baumgart",
   "scripts": {
-    "clone-images": "npx rimraf ./tmp/botc-icons/ && git clone https://github.com/tomozbot/botc-icons.git --depth 1 ./tmp/botc-icons",
-    "copy-images": "npx copyfiles -u 3 ./tmp/botc-icons/WEBP/**/* ./src/assets/icons/ && npx copyfiles -u 3 ./tmp/botc-icons/WEBP/* ./src/assets/icons/",
-    "serve": "npm run clone-images && npm run copy-images && vue-cli-service serve",
-    "build": "npm run clone-images && npm run copy-images && vue-cli-service build ./src/main.js",
+    "clone-unofficial": "npx rimraf ./tmp && git clone https://github.com/tomozbot/botc-icons.git --depth 1 ./tmp/botc-icons",
+    "copy-unofficial": "npx rimraf ./src/assets/icons/unofficial/ && npx copyfiles -u 3 ./tmp/botc-icons/WEBP/**/* ./src/assets/icons/unofficial && npx copyfiles -u 3 ./tmp/botc-icons/WEBP/* ./src/assets/icons/unofficial/ && npx rimraf ./tmp",
+    "clone-official": "npx rimraf ./tmp && git clone https://github.com/ThePandemoniumInstitute/botc-release.git --depth 1 ./tmp/botc-release",
+    "copy-official": "npx rimraf ./src/assets/icons/official/ && npx copyfiles -u 4 ./tmp/botc-release/resources/characters/**/* ./src/assets/icons/official/ && npx rimraf ./tmp",
+    "serve": "npm run clone-unofficial && npm run copy-unofficial && npm run clone-official && npm run copy-official && vue-cli-service serve",
+    "build": "npm run clone-unofficial && npm run copy-unofficial && npm run clone-official && npm run copy-official && vue-cli-service build ./src/main.js",
     "lint": "vue-cli-service lint",
     "lint-ci": "vue-cli-service lint --no-fix --max-warnings=0"
   },

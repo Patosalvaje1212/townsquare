@@ -32,24 +32,51 @@ export default {
   },
   computed: {
     gamestate: function () {
+      function cleanRoles(roles) {
+        return roles.map((role) => {
+          if (role.isCustom) {
+            const cleanedRole = { ...role };
+            delete cleanedRole.isCustom;
+            delete cleanedRole.selected;
+            delete cleanedRole.imageAlt;
+            delete cleanedRole.firstNightInEdition;
+            delete cleanedRole.otherNightInEdition;
+            if (cleanedRole.jinxes) {
+              cleanedRole.jinxes = [...cleanedRole.jinxes].map(
+                ([id, reason]) => ({ id, reason }),
+              );
+            }
+            return cleanedRole;
+          } else {
+            return { id: role.id };
+          }
+        });
+      }
+
       return JSON.stringify({
-        bluffs: this.players.bluffs.map(({ id }) => id),
+        bluffs: this.bluffs.map(({ id }) => id),
         edition: this.edition.isOfficial
           ? { id: this.edition.id }
           : this.edition,
         roles: this.edition.isOfficial
           ? ""
-          : this.$store.getters.customRolesStripped,
-        npcs: this.players.npcs.map((npc) =>
-          npc.isCustom ? npc : { id: npc.id },
-        ),
+          : cleanRoles([...this.roles.values()]),
+        npcs: cleanRoles(this.npcs),
         players: this.players.players.map((player) => ({
           ...player,
           role: player.role.id || {},
         })),
       });
     },
-    ...mapState(["modals", "players", "edition", "roles", "session"]),
+    ...mapState([
+      "modals",
+      "players",
+      "edition",
+      "roles",
+      "session",
+      "npcs",
+      "bluffs",
+    ]),
   },
   data() {
     return {
@@ -73,18 +100,18 @@ export default {
         }
         if (bluffs.length) {
           bluffs.forEach((role, index) => {
-            this.$store.commit("players/setBluff", {
+            this.$store.commit("setBluff", {
               index,
               role: this.$store.state.roles.get(role) || {},
             });
           });
         }
         if (npcs) {
-          this.$store.commit("players/setNpcs", {
+          this.$store.commit("setNpcs", {
             npcs: npcs.map(
               (f) =>
-                this.$store.state.npcs.get(f) ||
-                this.$store.state.npcs.get(f.id) ||
+                this.$store.state.otherNpcs.get(f) ||
+                this.$store.state.otherNpcs.get(f.id) ||
                 f,
             ),
           });

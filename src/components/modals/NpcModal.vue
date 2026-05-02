@@ -33,7 +33,7 @@ import Token from "../Token";
 export default {
   components: { Token, Modal },
   computed: {
-    ...mapState(["modals", "npcs", "grimoire"]),
+    ...mapState(["modals", "npcs", "otherNpcs", "grimoire"]),
     isDisplayed() {
       return this.modals.npc && this.availableRoles.length;
     },
@@ -49,12 +49,12 @@ export default {
   methods: {
     availableRoles(type) {
       const characters = [];
-      this.$store.state.npcs.forEach((role) => {
+      this.otherNpcs.forEach((role) => {
         // don't show npcs that are already in play
         if (
           (((!type || type === "fabled") && role.team === "fabled") ||
             ((!type || type === "loric") && role.team === "loric")) &&
-          !this.$store.state.players.npcs.some((npc) => npc.id === role.id)
+          !this.npcs.some((npc) => npc.id === role.id)
         ) {
           characters.push(role);
         }
@@ -62,7 +62,7 @@ export default {
       return characters;
     },
     setNpcs(role) {
-      this.$store.commit("players/setNpcs", {
+      this.$store.commit("setNpcs", {
         npcs: role,
       });
       this.$store.commit("toggleModal", "npc");

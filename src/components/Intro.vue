@@ -19,6 +19,7 @@
         Institute.
       </div>
     </div>
+    <img src="../assets/community-created-content.webp" alt="" class="ccc" />
     <a
       class="redirect"
       v-if="language === 'zh-CN'"
@@ -44,7 +45,6 @@ export default {
 </script>
 
 <style scoped lang="scss">
-// Intro
 .intro {
   text-align: center;
   width: 50%;
@@ -77,8 +77,7 @@ export default {
     img {
       width: 120px;
       display: block;
-      margin: auto;
-      margin-bottom: 1vh;
+      margin: auto auto 1vh;
     }
   }
 
@@ -92,6 +91,16 @@ export default {
     box-shadow: 0 0 10px black;
     border: 3px solid black;
   }
+
+  img.ccc {
+    position: absolute;
+    top: 100%;
+    width: 25vh;
+    margin-top: 2vh;
+    max-width: 192px;
+    filter: drop-shadow(0 0 10px black);
+  }
+
   .footer {
     font-size: 60%;
     opacity: 0.75;

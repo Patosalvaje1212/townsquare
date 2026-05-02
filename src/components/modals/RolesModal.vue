@@ -12,12 +12,21 @@
       </li>
       <li
         v-for="role in teamRoles"
-        :class="[role.team, role.selected ? 'selected' : '']"
+        :class="[
+          {
+            selected: role.selected,
+            disabled: isDisabled(role),
+          },
+          role.team,
+        ]"
         :key="role.id"
         @click="role.selected = role.selected ? 0 : 1"
       >
         <Token :role="role" />
-        <font-awesome-icon icon="exclamation-triangle" v-if="role.setup" />
+        <font-awesome-icon
+          icon="exclamation-triangle"
+          v-if="role.setup || isDisabled(role)"
+        />
         <div class="buttons" v-if="allowMultiple">
           <font-awesome-icon
             icon="minus-circle"
@@ -40,7 +49,10 @@
           v-if="isGardenerOrTorActive || grimoire.isMockAssignmentsAllowed"
           @click="assignRoles"
           :class="{
-            disabled: selectedRoles !== nonTravellers || !selectedRoles,
+            disabled:
+              selectedRoles !== nonTravellers ||
+              !selectedRoles ||
+              isIllegalTokenSelected,
           }"
         >
           <font-awesome-icon
@@ -57,7 +69,10 @@
           v-if="!isGardenerOrTorActive"
           @click="assignAndSendRoles"
           :class="{
-            disabled: selectedRoles !== nonTravellers || !selectedRoles,
+            disabled:
+              selectedRoles !== nonTravellers ||
+              !selectedRoles ||
+              isIllegalTokenSelected,
           }"
         >
           <font-awesome-icon icon="people-arrows" />
@@ -68,7 +83,15 @@
           Shuffle characters
         </div>
       </div>
-      <div class="warning" v-if="hasSelectedSetupRoles">
+      <div class="illegal warning" v-if="isIllegalTokenSelected">
+        <font-awesome-icon icon="exclamation-triangle" />
+        <span>
+          Warning: there are characters selected cannot be sent to players! You
+          will not be able to distribute characters until these characters are
+          removed.
+        </span>
+      </div>
+      <div class="setup warning" v-if="hasSelectedSetupRoles">
         <font-awesome-icon icon="exclamation-triangle" />
         <span>
           Warning: there are characters selected that modify the game setup! The
@@ -113,8 +136,13 @@ export default {
     isGardenerOrTorActive: function () {
       return this.npcs.some((npc) => npc.id === "gardener" || npc.id === "tor");
     },
-    ...mapState(["grimoire", "roles", "modals"]),
-    ...mapState("players", ["players", "npcs"]),
+    isIllegalTokenSelected: function () {
+      return Object.values(this.roleSelection).some((roles) =>
+        roles.some((role) => role.selected && this.isDisabled(role)),
+      );
+    },
+    ...mapState(["grimoire", "roles", "npcs", "modals"]),
+    ...mapState("players", ["players"]),
     ...mapGetters({ nonTravellers: "players/nonTravellers" }),
   },
   methods: {
@@ -144,33 +172,45 @@ export default {
       });
     },
     assignRoles() {
-      if (this.selectedRoles === this.nonTravellers && this.selectedRoles) {
-        // generate list of selected roles and randomize it
-        const roles = Object.values(this.roleSelection)
-          .map((roles) =>
-            roles
-              // duplicate roles selected more than once and filter unselected
-              .reduce((a, r) => [...a, ...Array(r.selected).fill(r)], []),
-          )
-          // flatten into a single array
-          .reduce((a, b) => [...a, ...b], [])
-          .map((a) => [Math.random(), a])
-          .sort((a, b) => a[0] - b[0])
-          .map((a) => a[1]);
-        this.players.forEach((player) => {
-          if (player.role.team !== "traveller" && roles.length) {
-            const value = roles.pop();
-            this.$store.commit("players/update", {
-              player,
-              property: "role",
-              value,
-            });
-          }
-        });
-        this.$store.commit("toggleModal", "roles");
+      if (
+        this.selectedRoles !== this.nonTravellers ||
+        !this.selectedRoles ||
+        this.isIllegalTokenSelected
+      ) {
+        return;
       }
+      // generate list of selected roles and randomize it
+      const roles = Object.values(this.roleSelection)
+        .map((roles) =>
+          roles
+            // duplicate roles selected more than once and filter unselected
+            .reduce((a, r) => [...a, ...Array(r.selected).fill(r)], []),
+        )
+        // flatten into a single array
+        .reduce((a, b) => [...a, ...b], [])
+        .map((a) => [Math.random(), a])
+        .sort((a, b) => a[0] - b[0])
+        .map((a) => a[1]);
+      this.players.forEach((player) => {
+        if (player.role.team !== "traveller" && roles.length) {
+          const value = roles.pop();
+          this.$store.commit("players/update", {
+            player,
+            property: "role",
+            value,
+          });
+        }
+      });
+      this.$store.commit("toggleModal", "roles");
     },
     assignAndSendRoles() {
+      if (
+        this.selectedRoles !== this.nonTravellers ||
+        !this.selectedRoles ||
+        this.isIllegalTokenSelected
+      ) {
+        return;
+      }
       const popup = this.players.some((player) => !player.connected)
         ? "WARNING: Some players have not yet taken their seats. Are you sure you want to assign and distribute characters?"
         : "Do you want to assign and distribute characters to all players?";
@@ -182,6 +222,15 @@ export default {
           this.$store.commit("session/distributeRoles", false);
         }).bind(this),
         2000,
+      );
+    },
+    isDisabled(role) {
+      return (
+        role.special &&
+        role.special.some(
+          (special) =>
+            special.type === "selection" && special.name === "bag-disabled",
+        )
       );
     },
     ...mapMutations(["toggleModal"]),
@@ -208,15 +257,26 @@ ul.tokens {
     border-radius: 50%;
     width: 5vw;
     margin: 5px;
-    opacity: 0.5;
+    filter: brightness(0.5);
     transition: all 250ms;
 
     @media (orientation: portrait) {
       width: 7vh;
     }
 
+    &.disabled {
+      box-shadow:
+        0 0 10px gray,
+        0 0 10px gray;
+      .token {
+        filter: grayscale(1);
+      }
+      .fa-exclamation-triangle {
+        color: gold;
+      }
+    }
     &.selected {
-      opacity: 1;
+      filter: none;
       .buttons {
         display: flex;
       }
@@ -224,27 +284,27 @@ ul.tokens {
         display: block;
       }
     }
-    &.townsfolk {
+    &.townsfolk:not(.disabled) {
       box-shadow:
         0 0 10px $townsfolk,
         0 0 10px #004cff;
     }
-    &.outsider {
+    &.outsider:not(.disabled) {
       box-shadow:
         0 0 10px $outsider,
         0 0 10px $outsider;
     }
-    &.minion {
+    &.minion:not(.disabled) {
       box-shadow:
         0 0 10px $minion,
         0 0 10px $minion;
     }
-    &.demon {
+    &.demon:not(.disabled) {
       box-shadow:
         0 0 10px $demon,
         0 0 10px $demon;
     }
-    &.traveller {
+    &.traveller:not(.disabled) {
       box-shadow:
         0 0 10px $traveller,
         0 0 10px $traveller;
@@ -344,11 +404,17 @@ ul.tokens {
     justify-content: center;
     align-items: center;
     .warning {
-      color: red;
       position: absolute;
       bottom: 20px;
-      right: 20px;
       z-index: 10;
+      &.setup {
+        color: red;
+        right: 20px;
+      }
+      &.illegal {
+        color: gold;
+        right: 80px;
+      }
       svg {
         font-size: 150%;
         vertical-align: middle;

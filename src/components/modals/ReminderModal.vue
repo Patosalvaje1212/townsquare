@@ -12,17 +12,16 @@
         <span
           class="icon"
           :style="{
-            backgroundImage: `url(${
-              reminder.image && grimoire.isImageOptIn
-                ? Array.isArray(reminder.image)
-                  ? reminder.image[0]
-                  : reminder.image
-                : require(
-                    '../../assets/icons/' +
-                      (reminder.imageAlt || reminder.role) +
-                      '.webp',
-                  )
-            })`,
+            backgroundImage: `url(${getImage(
+              {
+                id: reminder.role,
+                team: reminder.team,
+                edition: reminder.edition,
+                image: reminder.image,
+                imageAlt: reminder.imageAlt,
+              },
+              0,
+            )})`,
           }"
         ></span>
         <span class="text">{{ reminder.name }}</span>
@@ -40,7 +39,7 @@
 
 <script>
 import Modal from "./Modal";
-import { mapMutations, mapState } from "vuex";
+import { mapGetters, mapMutations, mapState } from "vuex";
 
 /**
  * Helper function that maps a reminder name with a role-based object that provides necessary visual data.
@@ -48,9 +47,11 @@ import { mapMutations, mapState } from "vuex";
  * @return {function(*): {image: string|string[]|string|*, role: *, name: *, imageAlt: string|*}}
  */
 const mapReminder =
-  ({ id, image, imageAlt }) =>
+  ({ id, team, edition, image, imageAlt }) =>
   (name) => ({
     role: id,
+    team,
+    edition,
     image,
     imageAlt,
     name,
@@ -62,7 +63,8 @@ export default {
   computed: {
     availableReminders() {
       let reminders = [];
-      const { players, bluffs } = this.$store.state.players;
+      const { npcs, bluffs, otherTravellers } = this.$store.state;
+      const { players } = this.$store.state.players;
       this.$store.state.roles.forEach((role) => {
         // add reminders from player roles and bluff/other roles
         if (
@@ -97,7 +99,7 @@ export default {
         }
       });
       // add npc reminders
-      this.$store.state.players.npcs.forEach((role) => {
+      npcs.forEach((role) => {
         role.reminders.map(mapReminder(role)).forEach((reminder1) => {
           if (
             !reminders.some(
@@ -112,7 +114,7 @@ export default {
       });
 
       // add out of script traveller reminders
-      this.$store.state.otherTravellers.forEach((role) => {
+      otherTravellers.forEach((role) => {
         if (players.some((p) => p.role.id === role.id)) {
           role.reminders.map(mapReminder(role)).forEach((reminder1) => {
             if (
@@ -128,9 +130,9 @@ export default {
         }
       });
 
-      reminders.push({ role: "good", name: "Good" });
-      reminders.push({ role: "evil", name: "Evil" });
-      reminders.push({ role: "fabled", name: "Custom Note" });
+      reminders.push({ imageAlt: "good", name: "Good" });
+      reminders.push({ imageAlt: "evil", name: "Evil" });
+      reminders.push({ imageAlt: "custom", name: "Custom Note" });
       return reminders;
     },
     isDisplayed() {
@@ -140,6 +142,7 @@ export default {
         this.players[this.playerIndex]
       );
     },
+    ...mapGetters(["getImage"]),
     ...mapState(["modals", "grimoire"]),
     ...mapState("players", ["players"]),
   },
@@ -152,10 +155,10 @@ export default {
     addReminder(reminder) {
       const player = this.$store.state.players.players[this.playerIndex];
       let value;
-      if (reminder.role === "fabled") {
+      if (reminder.imageAlt === "custom") {
         const name = prompt("Add a custom reminder note");
         if (!name) return;
-        value = [...player.reminders, { role: "fabled", name }];
+        value = [...player.reminders, { imageAlt: "custom", name }];
       } else {
         value = [...player.reminders, reminder];
       }
@@ -221,7 +224,7 @@ ul.reminders .reminder {
     position: absolute;
     top: 0;
     width: 90%;
-    height: 90%;
+    height: 80%;
     background-size: 100%;
     background-position: center center;
     background-repeat: no-repeat;

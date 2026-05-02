@@ -36,20 +36,20 @@
         >Script Tool</a
       >
       and then upload the generated JSON either directly here or provide a URL
-      to such a hosted JSON file. There are also a multitude of existing popular
-      custom scripts, many of which can be found at
+      to a hosted file. There are also a multitude of existing popular custom
+      scripts, many of which can be found at
       <a href="https://botcscripts.com/?sort=num_favs" target="_blank"
         >botcscripts.com</a
       >.<br />
       <br />
-      To play with custom characters, please read
+      To play with your own homebrew characters, please read
       <a
         href="https://github.com/nicholas-eden/townsquare#custom-character-support"
         target="_blank"
         >the documentation</a
       >
-      on how to write a custom character definition file.
-      <b>Only load custom JSON files from sources that you trust!</b>
+      on how to write a custom character JSON object.
+      <b>Only load JSON files from sources that you trust!</b>
       <h3>Some popular custom scripts:</h3>
       <ul class="scripts">
         <li
@@ -108,7 +108,7 @@ export default {
       isCustom: false,
     };
   },
-  computed: mapState(["roles", "modals", "edition", "jinxes"]),
+  computed: mapState(["roles", "modals", "edition"]),
   methods: {
     openUpload() {
       this.$refs.upload.click();
@@ -159,7 +159,7 @@ export default {
       }
     },
     loadOfficial(edition) {
-      this.$store.commit("players/setNpcs", {});
+      this.$store.commit("setNpcs", {});
       this.$store.commit("setEdition", edition);
     },
     parseRoles(roles) {
@@ -182,42 +182,12 @@ export default {
           this.$store.getters.clean(id),
         );
       }
+      this.$store.commit("setNpcs", []);
       this.$store.commit("setCustomRoles", roles);
       this.$store.commit(
         "setEdition",
         Object.assign({}, meta, { id: "custom" }),
       );
-      // check for fabled & loric and set those too, if present
-      const npcs = [];
-      roles.forEach((role) => {
-        if (this.$store.state.npcs.has(role.id || role)) {
-          npcs.push(this.$store.state.npcs.get(role.id || role));
-        }
-      });
-      if (
-        this.roles
-          .values()
-          .some((role) =>
-            new Map([
-              ...(this.jinxes.get(role.id) || []),
-              ...(role.jinxes || []),
-            ])
-              .keys()
-              .some((second) => this.roles.get(second)),
-          ) &&
-        !npcs.some((npc) => npc.id === "djinn")
-      ) {
-        npcs.push(this.$store.state.npcs.get("djinn"));
-      }
-      if (
-        (this.roles.values().some((role) => role.isCustom) ||
-          this.edition.bootlegger) &&
-        !npcs.some((npc) => npc.id === "bootlegger")
-      ) {
-        npcs.push(this.$store.state.npcs.get("bootlegger"));
-      }
-      this.$store.commit("players/setNpcs", {});
-      this.$store.commit("players/setNpcs", { npcs });
       this.isCustom = false;
     },
     ...mapMutations(["toggleModal"]),

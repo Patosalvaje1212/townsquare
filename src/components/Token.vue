@@ -4,7 +4,7 @@
       class="icon"
       v-if="role.id"
       :style="{
-        backgroundImage: `url(${getImage(role)})`,
+        backgroundImage: `url(${getImage(role, alignmentIndex)})`,
       }"
     ></span>
     <span
@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { mapState } from "vuex";
+import { mapGetters, mapState } from "vuex";
 
 export default {
   name: "Token",
@@ -64,6 +64,7 @@ export default {
         (this.role.remindersGlobal || []).length
       );
     },
+    ...mapGetters(["getImage"]),
     ...mapState(["grimoire"]),
   },
   data() {
@@ -73,28 +74,6 @@ export default {
     nameToFontSize: (name) => (name && name.length > 10 ? "90%" : "110%"),
   },
   methods: {
-    getImage(role) {
-      if (role.image && this.grimoire.isImageOptIn) {
-        if (Array.isArray(role.image)) {
-          return role.image[this.alignmentIndex] || role.image[0];
-        }
-        return role.image;
-      }
-
-      return require(
-        "../assets/icons/" +
-          (this.alignmentIndex > 0 ? "Alternate/" : "") +
-          (role.imageAlt || role.id) +
-          (this.role.team === "traveller"
-            ? this.alignmentIndex === 1
-              ? "_g"
-              : this.alignmentIndex === 2
-                ? "_e"
-                : ""
-            : "") +
-          ".webp",
-      );
-    },
     setRole() {
       this.$emit("set-role");
     },
@@ -138,7 +117,7 @@ export default {
     position: absolute;
     width: 100%;
     height: 100%;
-    margin-top: 3%;
+    margin-bottom: 9%;
   }
 
   span {

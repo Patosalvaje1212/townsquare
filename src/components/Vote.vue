@@ -28,6 +28,7 @@
             !session.isVoteInProgress &&
             session.lockedVote < 1
           "
+          class="buttons"
         >
           Time per player:
           <font-awesome-icon
@@ -39,6 +40,19 @@
             @mousedown.prevent="setVotingSpeed(100)"
             icon="plus-circle"
           />
+        </div>
+        <div
+          v-if="
+            isAnySeatEmpty &&
+            !session.isVoteInProgress &&
+            session.lockedVote < 1
+          "
+        >
+          <em>
+            <font-awesome-icon icon="exclamation-triangle" />
+            Some seats are unoccupied
+            <font-awesome-icon icon="exclamation-triangle" />
+          </em>
         </div>
         <div class="button-group">
           <div
@@ -180,23 +194,6 @@ export default {
         (index - 1 + players - session.nomination[1]) % players;
       return indexAdjusted >= session.lockedVote - 1;
     },
-    voters: function () {
-      const nomination = this.session.nomination[1];
-      const voters = Array(this.players.length)
-        .fill("")
-        .map((x, index) =>
-          this.session.votes[index] ? this.players[index].name : "",
-        );
-      const reorder = [
-        ...voters.slice(nomination + 1),
-        ...voters.slice(0, nomination + 1),
-      ];
-      return (
-        this.session.lockedVote
-          ? reorder.slice(0, this.session.lockedVote - 1)
-          : reorder
-      ).filter((n) => !!n);
-    },
     voteCount: function () {
       const nomination = this.session.nomination[1];
       const votes = Array(this.players.length)
@@ -215,6 +212,9 @@ export default {
           ? reorder.slice(0, this.session.lockedVote - 1)
           : reorder
       ).reduce((a, b) => a + b, 0);
+    },
+    isAnySeatEmpty: function () {
+      return this.players.some((player) => !player.connected);
     },
   },
   data() {
@@ -354,6 +354,10 @@ export default {
   }
 
   svg {
+    filter: drop-shadow(0 0 1px #000000) drop-shadow(0 0 1px #000000);
+  }
+
+  .buttons svg {
     cursor: pointer;
     &:hover path {
       fill: url(#demon);

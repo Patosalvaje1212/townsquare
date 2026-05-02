@@ -141,6 +141,10 @@ class LiveSession {
       case "gs":
         this._updateGamestate(params);
         break;
+      case "clear":
+        if (!this._isSpectator) return;
+        this._store.dispatch("players/clearRoles");
+        break;
       case "player":
         this._updatePlayer(params);
         break;
@@ -214,6 +218,9 @@ class LiveSession {
         break;
       case "bye":
         this._handleBye(params);
+        break;
+      case "handRaised":
+        this._updateHandRaised(params);
         break;
       case "pronouns":
         this._updatePlayerPronouns(params);
@@ -333,6 +340,7 @@ class LiveSession {
       isDead: player.isDead,
       isVoteless: player.isVoteless,
       hasTwoVotes: player.hasTwoVotes,
+      handRaised: player.handRaised,
       pronouns: player.pronouns,
       ...(player.role && player.role.team === "traveller"
         ? { roleId: player.role.id }
@@ -344,8 +352,7 @@ class LiveSession {
         isLightweight,
       });
     } else {
-      const { session, grimoire } = this._store.state;
-      const { npcs } = this._store.state.players;
+      const { session, grimoire, npcs } = this._store.state;
       this.sendEdition(playerId);
       this._sendDirect(playerId, "gs", {
         gamestate: this._gamestate,
@@ -409,6 +416,7 @@ class LiveSession {
         "isDead",
         "isVoteless",
         "hasTwoVotes",
+        "handRaised",
         "pronouns",
       ].forEach((property) => {
         const value = state[property];
@@ -452,10 +460,18 @@ class LiveSession {
         isVoteInProgress,
       });
       this._store.commit("session/setMarkedPlayer", markedPlayer);
-      this._store.commit("players/setNpcs", {
-        npcs: npcs.map((f) => this._store.state.npcs.get(f.id) || f),
+      this._store.commit("setNpcs", {
+        npcs: npcs.map((f) => this._store.state.otherNpcs.get(f.id) || f),
       });
     }
+  }
+
+  /**
+   * Publish a grimoire clear event. ST only
+   */
+  sendClear() {
+    if (this._isSpectator) return;
+    this._send("clear");
   }
 
   /**
@@ -486,13 +502,17 @@ class LiveSession {
     this._store.commit("setEdition", edition);
     if (roles) {
       this._store.commit("setCustomRoles", roles);
-      if (this._store.state.roles.size !== roles.length) {
-        const missing = [];
-        roles.forEach(({ id }) => {
-          if (!this._store.state.roles.get(id)) {
-            missing.push(id);
-          }
-        });
+      const missing = [];
+      roles.forEach(({ id }) => {
+        if (
+          id &&
+          !this._store.state.roles.get(id) &&
+          !this._store.state.otherNpcs.get(id)
+        ) {
+          missing.push(id);
+        }
+      });
+      if (missing.length) {
         alert(
           `This session contains custom characters that can't be found. ` +
             `Please load them before joining! ` +
@@ -509,10 +529,9 @@ class LiveSession {
    */
   sendNpcs() {
     if (this._isSpectator) return;
-    const { npcs } = this._store.state.players;
     this._send(
       "npcs",
-      npcs.map((f) => (f.isCustom ? f : { id: f.id })),
+      this._store.state.npcs.map((f) => (f.isCustom ? f : { id: f.id })),
     );
   }
 
@@ -523,8 +542,8 @@ class LiveSession {
    */
   _updateNpcs(npcs) {
     if (!this._isSpectator) return;
-    this._store.commit("players/setNpcs", {
-      npcs: npcs.map((f) => this._store.state.npcs.get(f.id) || f),
+    this._store.commit("setNpcs", {
+      npcs: npcs.map((f) => this._store.state.otherNpcs.get(f.id) || f),
     });
   }
 
@@ -588,26 +607,46 @@ class LiveSession {
           this._store.state.roles.get(value) ||
           this._store.getters.rolesJSONbyId.get(value) ||
           {};
+        if (
+          this._store.state.session.playerId === player.id &&
+          role.team !== "traveller"
+        ) {
+          this._store.dispatch("players/clearRoles");
+          if (!this._store.state.grimoire.isMuted) {
+            this._notify.currentTime = 0;
+            this._notify.play().catch((err) => {
+              console.warn("Audio play prevented by browser policy - ", err);
+            });
+          }
+        }
         this._store.commit("players/update", {
           player,
           property: "role",
           value: role,
         });
-        if (
-          this._store.state.session.playerId === player.id &&
-          role.team !== "traveller" &&
-          !this._store.state.grimoire.isMuted
-        ) {
-          this._notify.currentTime = 0;
-          this._notify.play().catch((err) => {
-            console.warn("Audio play prevented by browser policy - ", err);
-          });
-        }
       }
     } else {
       // just update the player otherwise
       this._store.commit("players/update", { player, property, value });
     }
+  }
+
+  /**
+   * Send a hand raised update
+   * @param player
+   * @param value
+   * @param isFromSockets
+   */
+  sendHandRaised({ player, value, isFromSockets }) {
+    //send hand raised only for the seated player or storyteller
+    //Do not re-send for an update that was recieved from the sockets layer
+    if (
+      isFromSockets ||
+      (this._isSpectator && this._store.state.session.playerId !== player.id)
+    )
+      return;
+    const index = this._store.state.players.players.indexOf(player);
+    this._send("handRaised", [index, value]);
   }
 
   /**
@@ -644,6 +683,23 @@ class LiveSession {
       return;
     const index = this._store.state.players.players.indexOf(player);
     this._send("name", [index, value]);
+  }
+
+  /**
+   * Update raised hands based on incoming data.
+   * @param index
+   * @param value
+   * @private
+   */
+  _updateHandRaised([index, value]) {
+    const player = this._store.state.players.players[index];
+
+    this._store.commit("players/update", {
+      player,
+      property: "handRaised",
+      value,
+      isFromSockets: true,
+    });
   }
 
   /**
@@ -1092,6 +1148,13 @@ export default (store) => {
   // setup
   const session = new LiveSession(store);
 
+  // listen to actions
+  store.subscribeAction(({ type }) => {
+    if (type === "players/clearRoles") {
+      session.sendClear();
+    }
+  });
+
   // listen to mutations
   store.subscribe(({ type, payload }, state) => {
     switch (type) {
@@ -1151,7 +1214,7 @@ export default (store) => {
       case "setEdition":
         session.sendEdition();
         break;
-      case "players/setNpcs":
+      case "setNpcs":
         session.sendNpcs();
         break;
       case "session/setMarkedPlayer":
@@ -1172,7 +1235,9 @@ export default (store) => {
         session.sendGamestate("", true);
         break;
       case "players/update":
-        if (payload.property === "pronouns") {
+        if (payload.property === "handRaised") {
+          session.sendHandRaised(payload);
+        } else if (payload.property === "pronouns") {
           session.sendPlayerPronouns(payload);
         } else if (payload.property === "name") {
           session.sendPlayerName(payload);

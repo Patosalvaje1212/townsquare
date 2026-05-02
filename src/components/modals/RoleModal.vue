@@ -113,7 +113,7 @@ export default {
     setRole(role, alignmentIndex) {
       if (this.playerIndex < 0) {
         // assign to bluff slot (index < 0)
-        this.$store.commit("players/setBluff", {
+        this.$store.commit("setBluff", {
           index: this.playerIndex * -1 - 1,
           role,
         });

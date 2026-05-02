@@ -9,6 +9,7 @@
           marked:
             (!session.isSpectator || session.isVoteWatchingAllowed) &&
             session.markedPlayer === index,
+          'hand-raised': player.handRaised,
           'no-vote': player.isVoteless,
           'two-votes': player.hasTwoVotes,
           you:
@@ -44,9 +45,9 @@
         "
       >
         <em>{{ nightOrder.get(player).first }}</em>
-        <span v-if="player.role.firstNightReminder">{{
-          player.role.firstNightReminder
-        }}</span>
+        <span class="description" v-if="player.role.firstNightReminder">
+          <span v-html="formatNightReminder(player.role.firstNightReminder)" />
+        </span>
       </div>
       <div
         class="night-order other"
@@ -57,9 +58,9 @@
         "
       >
         <em>{{ nightOrder.get(player).other }}</em>
-        <span v-if="player.role.otherNightReminder">{{
-          player.role.otherNightReminder
-        }}</span>
+        <span class="description" v-if="player.role.otherNightReminder">
+          <span v-html="formatNightReminder(player.role.otherNightReminder)" />
+        </span>
       </div>
 
       <Token
@@ -72,8 +73,39 @@
         @set-role="$emit('trigger', ['openRoleModal'])"
       />
 
+      <!-- Claimed seat icon -->
+      <font-awesome-icon
+        icon="chair"
+        v-if="player.id && session.sessionId"
+        class="seat"
+        :class="{
+          highlight: session.isRolesDistributed,
+          disconnected: !player.connected,
+        }"
+        :title="setSeatTitle()"
+      />
+
+      <!-- Ghost vote icon -->
+      <font-awesome-icon
+        icon="vote-yea"
+        class="has-vote"
+        v-if="player.isDead && !player.isVoteless"
+        @click="updatePlayer('isVoteless', true)"
+        title="Ghost vote"
+      />
+
+      <!-- Two votes icon -->
+      <font-awesome-icon
+        icon="sign-language"
+        class="two-votes"
+        v-if="player.hasTwoVotes"
+        @click="updatePlayer('hasTwoVotes', false)"
+        title="Has two votes"
+      />
+
       <!-- Overlay icons -->
       <div class="overlay">
+        <font-awesome-icon icon="hand-paper" class="hand" />
         <font-awesome-icon
           icon="hand-paper"
           class="vote first-vote"
@@ -117,36 +149,6 @@
         />
       </div>
 
-      <!-- Claimed seat icon -->
-      <font-awesome-icon
-        icon="chair"
-        v-if="player.id && session.sessionId"
-        class="seat"
-        :class="{
-          highlight: session.isRolesDistributed,
-          disconnected: !player.connected,
-        }"
-        :title="setSeatTitle()"
-      />
-
-      <!-- Ghost vote icon -->
-      <font-awesome-icon
-        icon="vote-yea"
-        class="has-vote"
-        v-if="player.isDead && !player.isVoteless"
-        @click="updatePlayer('isVoteless', true)"
-        title="Ghost vote"
-      />
-
-      <!-- Two votes icon -->
-      <font-awesome-icon
-        icon="sign-language"
-        class="two-votes"
-        v-if="player.hasTwoVotes"
-        @click="updatePlayer('hasTwoVotes', false)"
-        title="Has two votes"
-      />
-
       <!-- On block icon -->
       <div class="marked">
         <font-awesome-icon icon="skull" />
@@ -164,6 +166,17 @@
 
       <transition name="fold">
         <ul class="menu" v-if="isMenuOpen">
+          <li
+            @click="raiseHand"
+            v-if="
+              session.isSpectator &&
+              player.connected &&
+              player.id === session.playerId
+            "
+          >
+            <font-awesome-icon icon="hand-paper" />
+            Raise Hand
+          </li>
           <li @click="changeAlignment" v-if="player.role.id">
             <font-awesome-icon icon="yin-yang" />
             Change Alignment
@@ -259,23 +272,22 @@
         class="reminder"
         :key="reminder.role + ' ' + reminder.name"
         v-for="reminder in player.reminders"
-        :class="[reminder.role]"
+        :class="[{ custom: reminder.imageAlt === 'custom' }, reminder.role]"
         @click="removeReminder(reminder)"
       >
         <span
           class="icon"
           :style="{
-            backgroundImage: `url(${
-              reminder.image && grimoire.isImageOptIn
-                ? Array.isArray(reminder.image)
-                  ? reminder.image[0]
-                  : reminder.image
-                : require(
-                    '../assets/icons/' +
-                      (reminder.imageAlt || reminder.role) +
-                      '.webp',
-                  )
-            })`,
+            backgroundImage: `url(${getImage(
+              {
+                id: reminder.role,
+                team: reminder.team,
+                edition: reminder.edition,
+                image: reminder.image,
+                imageAlt: reminder.imageAlt,
+              },
+              0,
+            )})`,
           }"
         ></span>
         <span class="text">{{ reminder.name }}</span>
@@ -309,6 +321,7 @@ export default {
     ...mapState("players", ["players"]),
     ...mapState(["grimoire", "session"]),
     ...mapGetters({ nightOrder: "players/nightOrder" }),
+    ...mapGetters(["getImage"]),
     index: function () {
       return this.players.indexOf(this.player);
     },
@@ -340,6 +353,16 @@ export default {
     };
   },
   methods: {
+    formatNightReminder(text) {
+      return text
+        .replace(/\*(.*?)\*/g, "<b>$1</b>")
+        .replace(/:reminder:/g, '<i class="reminder-token"></i>');
+    },
+    raiseHand() {
+      if (this.session.isSpectator && this.player.id !== this.session.playerId)
+        return;
+      this.updatePlayer("handRaised", !this.player.handRaised, false);
+    },
     changeAlignment() {
       let newAlignment = this.player.alignmentIndex + 1;
       if (
@@ -396,6 +419,7 @@ export default {
       if (
         this.session.isSpectator &&
         property !== "reminders" &&
+        property !== "handRaised" &&
         property !== "pronouns" &&
         property !== "name" &&
         property !== "alignmentIndex"
@@ -676,6 +700,7 @@ export default {
   z-index: 2;
   cursor: pointer;
 
+  &.hand,
   &.swap,
   &.move,
   &.nominate,
@@ -699,10 +724,29 @@ export default {
       fill: url(#demon);
     }
 
+    &.hand.fa-hand-paper {
+      height: 55%;
+      transform: none;
+      transform-origin: center 175%;
+      transition: all 500ms;
+      & * {
+        fill: url(#default);
+      }
+    }
+
     &.fa-times * {
       fill: url(#townsfolk);
     }
   }
+}
+
+.player.hand-raised .overlay svg.hand.fa-hand-paper {
+  opacity: 1;
+  transform: rotateZ(45deg) translateY(-35%);
+}
+
+#townsquare.vote .player .overlay svg.hand.fa-hand-paper {
+  opacity: 0;
 }
 
 // other player voted yes, but is not locked yet
@@ -1063,9 +1107,9 @@ li.move:not(.from) .player .overlay svg.move {
     position: absolute;
     top: 0;
     width: 90%;
-    height: 90%;
+    height: 80%;
     background-size: 100%;
-    background-position: center 0;
+    background-position: center center;
     background-repeat: no-repeat;
     background-image: url("../assets/plus.webp");
     transition: opacity 200ms;
@@ -1075,6 +1119,7 @@ li.move:not(.from) .player .overlay svg.move {
     background-image: url("../assets/x.webp");
     opacity: 0;
     top: 5%;
+    height: 90%;
   }
 
   &.add {
@@ -1087,10 +1132,11 @@ li.move:not(.from) .player .overlay svg.move {
 
     .icon {
       top: 5%;
+      height: 90%;
     }
   }
 
-  &.fabled {
+  &.custom {
     .icon {
       display: none;
     }

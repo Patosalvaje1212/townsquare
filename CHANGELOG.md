@@ -1,5 +1,49 @@
 # Release Notes
 
+### Version 2.22.4
+- Updated character data to match Gardener and Bootlegger changes
+
+### Version 2.22.3
+- Fixed Game State Modal not opening with custom scripts selected
+- Fixed loading scripts sequentially with the same homebrew character(s) in them causing an error
+- Fixed custom reminders behaving like regular reminders on the grimoire
+
+### Version 2.22.2
+- Added Knaves and God of Ug
+- Made the app default to the "Grimoire" view instead of the "Town Square" view when first opened
+- Implemented official "generic" character icons
+- Fixed Bootlegger not automatically being added when a homebrew NPC is the only homebrew on script
+- Fixed empty bluffs not being saved to state when all players are cleared
+- Fixed NPCs showing on the intro screen
+
+### Version 2.22.1
+- Made the Drunk, Marionette, and Lil' Monsta tokens able to be selected again, so that the randomiser may still "choose" these characters, but instead made the bag unable to be sent until these characters are deselected
+
+### Version 2.22.0
+- Migrated to official character art as default (with explicit permission from TPI), with an option to still use the unofficial art if desired
+- Changed all night reminder texts to the official night reminder texts
+- Added the official "Community Created Content" logo to the main page
+- Made the "Clear All" characters button (if used by the ST) also clear characters for all players
+- Made receiving a character as a player also clear all characters
+- Made the Drunk, Marionette, and Lil' Monsta tokens unable to be selected when building a bag
+- Added more "popular custom scripts" from the community
+- Added support for the "background" property from the script meta
+
+### Version 2.21.7
+- Added Ventriloquist
+- Added small warning for STs on the voting screen to inform them if there are some unoccupied seats
+
+### Version 2.21.6
+- Added Pope
+
+### Version 2.21.5
+- Added support for hand-raising (with explicit permission from TPI) using the space bar and from the player menu - the ST may force lower all player hands from the Players tab
+- Moved the "Allow Self-Naming" setting from the Session tab to the Players tab
+
+### Version 2.21.4
+- Added Hindu
+- Fixed Tor appearing at the top of the night order on base-3 scripts
+
 ### Version 2.21.3
 - Added button "Force Clear All Roles" in the "Hosting" tab for the ST, that clears All roles for the rest of players.
 - Added button in the player role modal for the ST to be able to reveal that character to all other players.

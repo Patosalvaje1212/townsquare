@@ -86,6 +86,16 @@
             Background Image
             <em><font-awesome-icon icon="image" /></em>
           </li>
+          <li @click="toggleUnofficial">
+            <small>Use Unofficial Art</small>
+            <em
+              ><font-awesome-icon
+                :icon="[
+                  'fas',
+                  grimoire.isArtUnofficial ? 'check-square' : 'square',
+                ]"
+            /></em>
+          </li>
           <li v-if="!edition.isOfficial" @click="imageOptIn">
             <small>Show Custom Images</small>
             <em
@@ -146,16 +156,6 @@
             >
               Vote History<em>[V]</em>
             </li>
-            <li v-if="!session.isSpectator" @click="toggleSelfNaming">
-              Allow Self-Naming
-              <em
-                ><font-awesome-icon
-                  :icon="[
-                    'fas',
-                    session.allowSelfNaming ? 'check-square' : 'square',
-                  ]"
-              /></em>
-            </li>
             <li v-if="!session.isSpectator" @click="setVoteWatching">
               Secret Vote
               <em
@@ -191,6 +191,20 @@
           <!-- Users -->
           <li class="headline">Players</li>
           <li @click="addPlayer" v-if="players.length < 20">Add<em>[A]</em></li>
+          <li v-if="!session.isSpectator" @click="toggleSelfNaming">
+            Allow Self-Naming
+            <em
+              ><font-awesome-icon
+                :icon="[
+                  'fas',
+                  session.allowSelfNaming ? 'check-square' : 'square',
+                ]"
+            /></em>
+          </li>
+          <li @click="lowerHands" v-if="players.length">
+            Lower All Hands
+            <em><font-awesome-icon icon="sign-language" /></em>
+          </li>
           <li @click="randomizeSeatings" v-if="players.length > 2">
             Randomize
             <em><font-awesome-icon icon="dice" /></em>
@@ -295,8 +309,8 @@ export default {
         !this.npcs.some((npc) => npc.id === "tor")
       );
     },
-    ...mapState(["grimoire", "session", "edition"]),
-    ...mapState("players", ["players", "npcs"]),
+    ...mapState(["grimoire", "session", "edition", "npcs"]),
+    ...mapState("players", ["players"]),
   },
   data() {
     return {
@@ -387,6 +401,16 @@ export default {
         this.$store.commit("players/add", name);
       }
     },
+    lowerHands() {
+      if (this.session.isSpectator) return;
+      this.players.forEach((player) => {
+        this.$store.commit("players/update", {
+          player,
+          property: "handRaised",
+          value: false,
+        });
+      });
+    },
     randomizeSeatings() {
       if (this.session.isSpectator) return;
       if (confirm("Are you sure you want to randomize seatings?")) {
@@ -401,6 +425,7 @@ export default {
           this.$store.commit("session/nomination");
         }
         this.$store.commit("players/clear");
+        this.$store.commit("setBluff");
       }
     },
     clearRoles() {
@@ -456,6 +481,7 @@ export default {
     ...mapMutations([
       "toggleGrimoire",
       "toggleMenu",
+      "toggleUnofficial",
       "toggleImageOptIn",
       "toggleMuted",
       "toggleNightOrder",

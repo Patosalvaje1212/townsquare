@@ -9,13 +9,12 @@ const NEWPLAYER = {
   hasTwoVotes: false,
   hasResponded: {},
   isDead: false,
+  handRaised: false,
   pronouns: "",
 };
 
 const state = () => ({
   players: [],
-  npcs: [],
-  bluffs: [{}, {}, {}],
 });
 
 const getters = {
@@ -29,7 +28,7 @@ const getters = {
     return Math.min(nonTravellers.length, 15);
   },
   // calculate a Map of player => night order
-  nightOrder({ players, npcs }, getters, rootState) {
+  nightOrder({ players }, getters, rootState) {
     const edition = rootState.edition;
     const otherTravellers = rootState.otherTravellers;
     const firstNight = [];
@@ -56,7 +55,7 @@ const getters = {
         otherNight.push(role);
       }
     });
-    npcs.forEach((npc) => {
+    rootState.npcs.forEach((npc) => {
       npc.firstNightInEdition =
         edition.firstNight && edition.otherNight.includes(npc.id)
           ? edition.firstNight.indexOf(npc.id) + 1
@@ -84,7 +83,7 @@ const getters = {
       const other = otherNight.indexOf(player.role) + 1;
       nightOrder.set(player, { first, other });
     });
-    npcs.forEach((role) => {
+    rootState.npcs.forEach((role) => {
       const first = firstNight.indexOf(role) + 1;
       const other = otherNight.indexOf(role) + 1;
       nightOrder.set(role, { first, other });
@@ -122,14 +121,13 @@ const actions = {
       }));
     }
     commit("set", players);
-    commit("setBluff");
+    commit("setBluff", undefined, { root: true });
   },
 };
 
 const mutations = {
   clear(state) {
     state.players = [];
-    state.bluffs = [{}, {}, {}];
   },
   set(state, players = []) {
     state.players = players;
@@ -168,26 +166,6 @@ const mutations = {
   },
   move(state, [from, to]) {
     state.players.splice(to, 0, state.players.splice(from, 1)[0]);
-  },
-  setBluff(state, { index, role } = {}) {
-    if (index !== undefined) {
-      state.bluffs.splice(index, 1, role);
-    } else {
-      state.bluffs = [{}, {}, {}];
-    }
-  },
-  setNpcs(state, { index, npcs } = {}) {
-    if (index !== undefined) {
-      state.npcs.splice(index, 1);
-    } else if (npcs) {
-      if (!Array.isArray(npcs)) {
-        state.npcs.push(npcs);
-      } else {
-        state.npcs = npcs;
-      }
-    } else {
-      state.npcs = [];
-    }
   },
 };
 

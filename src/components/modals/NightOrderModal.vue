@@ -59,12 +59,14 @@
             class="icon"
             v-if="role.id"
             :style="{
-              backgroundImage: `url(${getImage(role)})`,
+              backgroundImage: `url(${getNightOrderImage(role)})`,
             }"
           ></span>
-          <span class="reminder" v-if="role.firstNightReminder">
-            {{ role.firstNightReminder }}
-          </span>
+          <span
+            class="reminder"
+            v-if="role.firstNightReminder"
+            v-html="formatNightReminder(role.firstNightReminder)"
+          />
         </li>
       </ul>
       <ul class="other">
@@ -78,7 +80,7 @@
             class="icon"
             v-if="role.id"
             :style="{
-              backgroundImage: `url(${getImage(role)})`,
+              backgroundImage: `url(${getNightOrderImage(role)})`,
             }"
           ></span>
           <span class="name">
@@ -109,9 +111,11 @@
               </small>
             </span>
           </span>
-          <span class="reminder" v-if="role.otherNightReminder">
-            {{ role.otherNightReminder }}
-          </span>
+          <span
+            class="reminder"
+            v-if="role.otherNightReminder"
+            v-html="formatNightReminder(role.otherNightReminder)"
+          />
         </li>
       </ul>
     </div>
@@ -120,7 +124,7 @@
 
 <script>
 import Modal from "./Modal";
-import { mapMutations, mapState } from "vuex";
+import { mapGetters, mapMutations, mapState } from "vuex";
 
 export default {
   components: {
@@ -132,10 +136,10 @@ export default {
       // add dusk and dawn to first night order sheet
       const duskIndex = this.edition.firstNight
         ? this.edition.firstNight.indexOf("dusk") + 1
-        : this.$store.getters.getFirstNightOrder("dusk");
+        : this.getFirstNightOrder("dusk");
       const dawnIndex = this.edition.firstNight
         ? this.edition.firstNight.indexOf("dawn") + 1
-        : this.$store.getters.getFirstNightOrder("dawn");
+        : this.getFirstNightOrder("dawn");
       if (duskIndex > 0) {
         rolesFirstNight.push({
           id: "dusk",
@@ -158,10 +162,10 @@ export default {
       if (this.players.length > 6) {
         const minionIndex = this.edition.firstNight
           ? this.edition.firstNight.indexOf("minioninfo") + 1
-          : this.$store.getters.getFirstNightOrder("minioninfo");
+          : this.getFirstNightOrder("minioninfo");
         const demonIndex = this.edition.firstNight
           ? this.edition.firstNight.indexOf("demoninfo") + 1
-          : this.$store.getters.getFirstNightOrder("demoninfo");
+          : this.getFirstNightOrder("demoninfo");
         if (minionIndex > 0) {
           rolesFirstNight.push({
             id: "minioninfo",
@@ -170,7 +174,7 @@ export default {
             team: "minion",
             players: this.players.filter((p) => p.role.team === "minion"),
             firstNightReminder:
-              "If there is more than one Minion, they all make eye contact with each other. Show the “This is the Demon” card. Point to the Demon.",
+              "If there are 7 or more players, wake all Minions: Show the *THIS IS THE DEMON* token. Point to the Demon. Show the *THESE ARE YOUR MINIONS* token. Point to the other Minions.",
           });
         }
         if (demonIndex > 0) {
@@ -181,7 +185,7 @@ export default {
             team: "demon",
             players: this.players.filter((p) => p.role.team === "demon"),
             firstNightReminder:
-              "Show the “These are your minions” card. Point to each Minion. Show the “These characters are not in play” card. Show 3 character tokens of good characters that are not in play.",
+              "If there are 7 or more players, wake the Demon: Show the *THESE ARE YOUR MINIONS* token. Point to all Minions. Show the *THESE CHARACTERS ARE NOT IN PLAY* token. Show 3 not-in-play good character tokens.",
           });
         }
       }
@@ -232,16 +236,16 @@ export default {
       // add dusk and dawn to other night order sheet
       const duskIndex = this.edition.otherNight
         ? this.edition.otherNight.indexOf("dusk") + 1
-        : this.$store.getters.getOtherNightOrder("dusk");
+        : this.getOtherNightOrder("dusk");
       const dawnIndex = this.edition.otherNight
         ? this.edition.otherNight.indexOf("dawn") + 1
-        : this.$store.getters.getOtherNightOrder("dawn");
+        : this.getOtherNightOrder("dawn");
       if (duskIndex > 0) {
         rolesOtherNight.push({
           id: "dusk",
           name: "Dusk",
           otherNight: duskIndex,
-          otherNightReminder: "Some Travellers & Fabled act.",
+          otherNightReminder: "Start the Night Phase.",
           players: [],
         });
       }
@@ -250,7 +254,7 @@ export default {
           id: "dawn",
           name: "Dawn",
           otherNight: dawnIndex,
-          otherNightReminder: "Wait a few seconds, then start the day.",
+          otherNightReminder: "Wait for a few seconds. End the Night Phase.",
           players: [],
         });
       }
@@ -296,6 +300,7 @@ export default {
       rolesOtherNight.sort((a, b) => a.otherNight - b.otherNight);
       return rolesOtherNight;
     },
+    ...mapGetters(["getImage", "getFirstNightOrder", "getOtherNightOrder"]),
     ...mapState([
       "roles",
       "otherTravellers",
@@ -303,11 +308,12 @@ export default {
       "edition",
       "grimoire",
       "session",
+      "npcs",
     ]),
-    ...mapState("players", ["players", "npcs"]),
+    ...mapState("players", ["players"]),
   },
   methods: {
-    getImage(role) {
+    getNightOrderImage(role) {
       if (
         role.id === "dusk" ||
         role.id === "dawn" ||
@@ -316,21 +322,15 @@ export default {
       ) {
         return require(`../../assets/${role.id}.webp`);
       }
-
-      if (role.image && this.grimoire.isImageOptIn) {
-        if (Array.isArray(role.image)) {
-          return role.image[0];
-        }
-
-        return role.image;
-      }
-
-      return require(
-        "../../assets/icons/" + (role.imageAlt || role.id) + ".webp",
-      );
+      return this.getImage(role, 0);
+    },
+    formatNightReminder(text) {
+      return text
+        .replace(/\*(.*?)\*/g, "<b>$1</b>")
+        .replace(/:reminder:/g, '<i class="reminder-token"></i>');
     },
     setResponded(player, roleId) {
-      var hasResponded = { ...player.hasResponded };
+      const hasResponded = { ...player.hasResponded };
       hasResponded[roleId] = !hasResponded[roleId];
       this.$store.commit("players/update", {
         player: player,
@@ -456,7 +456,7 @@ ul {
       flex-grow: 0;
       flex-shrink: 0;
       text-align: center;
-      margin: 0 2px -10px;
+      margin: -7px 2px -10px;
       &:after {
         content: " ";
         display: block;
@@ -500,6 +500,17 @@ ul {
       opacity: 0;
       transition: opacity 200ms ease-in-out;
       margin-left: -250px;
+      :deep(.reminder-token) {
+        display: inline-block;
+        vertical-align: middle;
+        height: 20px;
+        width: 20px;
+        border: 1px solid black;
+        border-radius: 50%;
+        top: -2px;
+        background: url("../../assets/reminder.webp") no-repeat 50%;
+        background-size: 100%;
+      }
     }
     &:hover .reminder {
       opacity: 1;

@@ -2,6 +2,7 @@
   <div
     id="app"
     @keyup="keyup"
+    @keyup.space="space"
     tabindex="-1"
     :class="{
       night: grimoire.isNight,
@@ -10,7 +11,9 @@
     :style="{
       backgroundImage: grimoire.background
         ? `url('${grimoire.background}')`
-        : '',
+        : edition.background && grimoire.isImageOptIn
+          ? `url('${edition.background}')`
+          : '',
     }"
   >
     <video
@@ -74,7 +77,7 @@ export default {
     Gradients,
   },
   computed: {
-    ...mapState(["grimoire", "session"]),
+    ...mapState(["edition", "grimoire", "session"]),
     ...mapState("players", ["players"]),
   },
   data() {
@@ -112,8 +115,6 @@ export default {
           if (this.session.isSpectator) return;
           this.$store.commit("toggleModal", "roles");
           break;
-        case "m":
-          break;
         case "v":
           if (this.session.voteHistory.length || !this.session.isSpectator) {
             this.$store.commit("toggleModal", "voteHistory");
@@ -137,6 +138,19 @@ export default {
           }
           break;
       }
+    },
+    space() {
+      const player = this.players.find((p) => p.id === this.session.playerId);
+      if (
+        !player ||
+        (this.session.isSpectator && player.id !== this.session.playerId)
+      )
+        return;
+      this.$store.commit("players/update", {
+        player,
+        property: "handRaised",
+        value: !player.handRaised,
+      });
     },
   },
 };

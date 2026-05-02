@@ -47,7 +47,11 @@
       </ul>
     </div>
 
-    <div class="npcs" :class="{ closed: !isNpcsOpen }" v-if="npcs.length">
+    <div
+      class="npcs"
+      :class="{ closed: !isNpcsOpen }"
+      v-if="npcs.length && players.length"
+    >
       <h3>
         <span>NPCs</span>
         <font-awesome-icon icon="times-circle" @click.stop="toggleNpcs" />
@@ -68,9 +72,9 @@
             "
           >
             <em>{{ nightOrder.get(role).first }}</em>
-            <span v-if="role.firstNightReminder">{{
-              role.firstNightReminder
-            }}</span>
+            <span class="description" v-if="role.firstNightReminder">
+              <span v-html="formatNightReminder(role.firstNightReminder)" />
+            </span>
           </div>
           <div
             class="night-order other"
@@ -81,9 +85,9 @@
             "
           >
             <em>{{ nightOrder.get(role).other }}</em>
-            <span v-if="role.otherNightReminder">{{
-              role.otherNightReminder
-            }}</span>
+            <span class="description" v-if="role.otherNightReminder">
+              <span v-html="formatNightReminder(role.otherNightReminder)" />
+            </span>
           </div>
           <Token :role="role"></Token>
         </li>
@@ -111,8 +115,8 @@ export default {
   },
   computed: {
     ...mapGetters({ nightOrder: "players/nightOrder" }),
-    ...mapState(["grimoire", "roles", "session"]),
-    ...mapState("players", ["players", "bluffs", "npcs"]),
+    ...mapState(["grimoire", "roles", "session", "bluffs", "npcs"]),
+    ...mapState("players", ["players"]),
   },
   data() {
     return {
@@ -126,6 +130,11 @@ export default {
     };
   },
   methods: {
+    formatNightReminder(text) {
+      return text
+        .replace(/\*(.*?)\*/g, "<b>$1</b>")
+        .replace(/:reminder:/g, '<i class="reminder-token"></i>');
+    },
     toggleBluffs() {
       this.isBluffsOpen = !this.isBluffsOpen;
     },
@@ -134,7 +143,7 @@ export default {
     },
     removeNpc(index) {
       if (this.session.isSpectator) return;
-      this.$store.commit("players/setNpcs", { index });
+      this.$store.commit("setNpcs", { index });
     },
     handleTrigger(playerIndex, [method, params]) {
       if (typeof this[method] === "function") {
@@ -343,6 +352,12 @@ export default {
             left: 100%;
           }
         }
+        .player .overlay svg.hand.fa-hand-paper {
+          transform: scaleX(-100%);
+        }
+        .player.hand-raised .overlay svg.hand.fa-hand-paper {
+          transform: scaleX(-100%) rotateZ(45deg) translateY(-35%);
+        }
         .fold-enter-active,
         .fold-leave-active {
           transform-origin: right center;
@@ -542,7 +557,7 @@ export default {
     opacity: 0;
   }
 
-  span {
+  .description {
     display: flex;
     position: absolute;
     padding: 5px 10px 5px 30px;
@@ -557,6 +572,18 @@ export default {
     align-items: center;
     opacity: 0;
     transition: opacity 200ms ease-in-out;
+
+    i.reminder-token {
+      display: inline-block;
+      vertical-align: middle;
+      height: 20px;
+      width: 20px;
+      border: 1px solid white;
+      border-radius: 50%;
+      top: -2px;
+      background: url("../assets/reminder.webp") no-repeat 50%;
+      background-size: 100%;
+    }
 
     &:before {
       transform: rotate(-90deg);
@@ -579,7 +606,7 @@ export default {
     }
   }
 
-  &.first span {
+  &.first .description {
     right: 120%;
     background: linear-gradient(
       to right,
@@ -596,7 +623,7 @@ export default {
     }
   }
 
-  &.other span {
+  &.other .description {
     left: 120%;
     background: linear-gradient(to right, $demon 0%, rgba(0, 0, 0, 0.5) 20%);
     &:before {
@@ -637,13 +664,13 @@ export default {
     background: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, $demon 100%);
   }
 
-  em:hover + span {
+  em:hover + .description {
     opacity: 1;
   }
 
   // adjustment for npcs
   .npcs &.first {
-    span {
+    .description {
       right: auto;
       left: 40px;
       &:after {
